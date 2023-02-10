@@ -1,6 +1,5 @@
 package com.harbinger.touchproof
 
-import android.animation.ObjectAnimator
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -14,7 +13,6 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.widget.Toast
 import kotlin.math.abs
 
 /**
@@ -34,7 +32,13 @@ class TouchProofService : Service() {
 
     var rootView: View? = null
     private val mH = Handler(Looper.getMainLooper())
-
+    private var lastClick = 0L
+    private val clickInterval = 300L
+    private var screenWidth = 0
+    private var screenHeight = 0
+    private var originalWidth=0
+    private var originalHeight=0
+    private var floatingOnTouchListener: FloatingOnTouchListener? = null
 
     override fun onBind(p0: Intent?): IBinder? {
         return null
@@ -53,12 +57,17 @@ class TouchProofService : Service() {
         layoutParams.gravity = Gravity.LEFT or Gravity.TOP
         layoutParams.flags =
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-        layoutParams.width = AndroidUtils.dip2px(this, DEFAULT_WIDTH.toFloat())
-        layoutParams.height = AndroidUtils.dip2px(this, DEFAULT_HEIGHT.toFloat())
-        leftX =0
-        layoutParams.x = (AndroidUtils.getScreeenWidth(this) - layoutParams.width / 2f).toInt()
+        originalWidth=AndroidUtils.dip2px(this, DEFAULT_WIDTH.toFloat())
+        originalHeight= AndroidUtils.dip2px(this, DEFAULT_HEIGHT.toFloat())
+        layoutParams.width = originalWidth
+        layoutParams.height =originalHeight
+        leftX = 0
+        screenWidth = AndroidUtils.getScreeenWidth(this)
+        screenHeight = AndroidUtils.getScreeenHeight(this)
+        layoutParams.x = (screenWidth - layoutParams.width / 2f).toInt()
         rightX = layoutParams.x
-        layoutParams.y = (0.8f * AndroidUtils.getScreeenHeight(this)).toInt()
+        layoutParams.y = (0.8f * screenHeight).toInt()
+        floatingOnTouchListener=FloatingOnTouchListener(leftX,rightX)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -80,12 +89,33 @@ class TouchProofService : Service() {
             }
             windowManager.updateViewLayout(rootView, layoutParams)
         }, 500)
-        rootView?.setOnTouchListener(
-            FloatingOnTouchListener(leftX, rightX)
-        )
+        rootView?.setOnTouchListener(floatingOnTouchListener)
         rootView?.setOnClickListener {
-            Toast.makeText(this, "test", Toast.LENGTH_SHORT).show()
             Log.d(TAG, "on click")
+            lastClick++
+            if (lastClick > 1) {
+                Log.d(TAG, "on multiple($lastClick) click")
+                if (layoutParams.width==originalWidth){
+                    layoutParams.width=screenWidth
+                    layoutParams.height=screenHeight
+                    layoutParams.x=0
+                    layoutParams.y=0
+                    rootView?.setBackgroundColor(resources.getColor(R.color.touch_proof))
+                    rootView?.setOnTouchListener(null)
+                    windowManager.updateViewLayout(rootView,layoutParams)
+                }else{
+                    layoutParams.width=originalWidth
+                    layoutParams.height=originalHeight
+                    layoutParams.x=Caches.x
+                    layoutParams.y=Caches.y
+                    rootView?.background = resources.getDrawable(R.drawable.touchproof)
+                    rootView?.setOnTouchListener(floatingOnTouchListener)
+                    windowManager.updateViewLayout(rootView,layoutParams)
+                }
+            }
+            mH.postDelayed(Runnable {
+                lastClick = 0
+            }, clickInterval)
         }
     }
 
