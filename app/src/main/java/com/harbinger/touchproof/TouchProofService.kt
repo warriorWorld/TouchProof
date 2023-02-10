@@ -63,7 +63,8 @@ class TouchProofService : Service() {
         layoutParams.height = originalHeight
         leftX = 0
         screenWidth = AndroidUtils.getScreeenWidth(this)
-        screenHeight = AndroidUtils.getScreeenHeight(this)
+        screenHeight =
+            AndroidUtils.getScreeenHeight(this) + AndroidUtils.dip2px(this, 50f)//懒得搞 凑活儿用
         layoutParams.x = (screenWidth - layoutParams.width / 2f).toInt()
         rightX = layoutParams.x
         layoutParams.y = (0.8f * screenHeight).toInt()
@@ -134,9 +135,9 @@ class TouchProofService : Service() {
         private var y: Int = 0
         private var movedX = 0
         private var movedY = 0
-        private var downTime = 0L
         private val CLICK_THRESHOLD = 1
-        private val LONG_CLICK_INTERVAL = 800
+        private val LONG_CLICK_INTERVAL = 800L
+        private val longClickHandler = Handler(Looper.getMainLooper())
 
         private fun toEdge(view: View) {
             if (Caches.x != leftX || Caches.x != rightX) {
@@ -160,9 +161,13 @@ class TouchProofService : Service() {
                     y = event.rawY.toInt()
                     movedX = 0
                     movedY = 0
-                    downTime = System.currentTimeMillis()
+                    longClickHandler.postDelayed(Runnable {
+                        VibratorUtil.Vibrate(view.context,100)
+                        view.performLongClick()
+                    }, LONG_CLICK_INTERVAL)
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    longClickHandler.removeCallbacksAndMessages(null)
                     val nowX = event.rawX.toInt()
                     val nowY = event.rawY.toInt()
                     movedX = nowX - x
@@ -175,17 +180,12 @@ class TouchProofService : Service() {
                     windowManager.updateViewLayout(view, layoutParams)
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    longClickHandler.removeCallbacksAndMessages(null)
                     Caches.x = layoutParams.x
                     Caches.y = layoutParams.y
                     Log.d("FLOAT", "moved x:$movedX ,moved y:$movedY")
                     if (abs(movedX) < CLICK_THRESHOLD && abs(movedY) < CLICK_THRESHOLD) {
-                        val interval=System.currentTimeMillis() - downTime
-                        Log.d(TAG,"down:$downTime ,interval:$interval")
-                        if (interval > LONG_CLICK_INTERVAL) {
-                            view.performLongClick()
-                        } else {
-                            view.performClick()
-                        }
+                        view.performClick()
                     }
                     toEdge(view)
                 }
