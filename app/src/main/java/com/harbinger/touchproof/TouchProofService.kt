@@ -36,8 +36,8 @@ class TouchProofService : Service() {
     private val clickInterval = 300L
     private var screenWidth = 0
     private var screenHeight = 0
-    private var originalWidth=0
-    private var originalHeight=0
+    private var originalWidth = 0
+    private var originalHeight = 0
     private var floatingOnTouchListener: FloatingOnTouchListener? = null
 
     override fun onBind(p0: Intent?): IBinder? {
@@ -57,17 +57,17 @@ class TouchProofService : Service() {
         layoutParams.gravity = Gravity.LEFT or Gravity.TOP
         layoutParams.flags =
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-        originalWidth=AndroidUtils.dip2px(this, DEFAULT_WIDTH.toFloat())
-        originalHeight= AndroidUtils.dip2px(this, DEFAULT_HEIGHT.toFloat())
+        originalWidth = AndroidUtils.dip2px(this, DEFAULT_WIDTH.toFloat())
+        originalHeight = AndroidUtils.dip2px(this, DEFAULT_HEIGHT.toFloat())
         layoutParams.width = originalWidth
-        layoutParams.height =originalHeight
+        layoutParams.height = originalHeight
         leftX = 0
         screenWidth = AndroidUtils.getScreeenWidth(this)
         screenHeight = AndroidUtils.getScreeenHeight(this)
         layoutParams.x = (screenWidth - layoutParams.width / 2f).toInt()
         rightX = layoutParams.x
         layoutParams.y = (0.8f * screenHeight).toInt()
-        floatingOnTouchListener=FloatingOnTouchListener(leftX,rightX)
+        floatingOnTouchListener = FloatingOnTouchListener(leftX, rightX)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -95,27 +95,35 @@ class TouchProofService : Service() {
             lastClick++
             if (lastClick > 1) {
                 Log.d(TAG, "on multiple($lastClick) click")
-                if (layoutParams.width==originalWidth){
-                    layoutParams.width=screenWidth
-                    layoutParams.height=screenHeight
-                    layoutParams.x=0
-                    layoutParams.y=0
+                if (layoutParams.width == originalWidth) {
+                    layoutParams.width = screenWidth
+                    layoutParams.height = screenHeight
+                    layoutParams.x = 0
+                    layoutParams.y = 0
                     rootView?.setBackgroundColor(resources.getColor(R.color.touch_proof))
                     rootView?.setOnTouchListener(null)
-                    windowManager.updateViewLayout(rootView,layoutParams)
-                }else{
-                    layoutParams.width=originalWidth
-                    layoutParams.height=originalHeight
-                    layoutParams.x=Caches.x
-                    layoutParams.y=Caches.y
+                    windowManager.updateViewLayout(rootView, layoutParams)
+                } else {
+                    layoutParams.width = originalWidth
+                    layoutParams.height = originalHeight
+                    layoutParams.x = Caches.x
+                    layoutParams.y = Caches.y
                     rootView?.background = resources.getDrawable(R.drawable.touchproof)
                     rootView?.setOnTouchListener(floatingOnTouchListener)
-                    windowManager.updateViewLayout(rootView,layoutParams)
+                    windowManager.updateViewLayout(rootView, layoutParams)
                 }
             }
             mH.postDelayed(Runnable {
                 lastClick = 0
             }, clickInterval)
+        }
+
+        rootView?.setOnLongClickListener {
+            if (layoutParams.width == originalWidth) {
+                Log.d(TAG, "long click")
+                android.os.Process.killProcess(android.os.Process.myPid())
+            }
+            return@setOnLongClickListener false
         }
     }
 
@@ -126,7 +134,9 @@ class TouchProofService : Service() {
         private var y: Int = 0
         private var movedX = 0
         private var movedY = 0
+        private var downTime = 0L
         private val CLICK_THRESHOLD = 1
+        private val LONG_CLICK_INTERVAL = 800
 
         private fun toEdge(view: View) {
             if (Caches.x != leftX || Caches.x != rightX) {
@@ -150,6 +160,7 @@ class TouchProofService : Service() {
                     y = event.rawY.toInt()
                     movedX = 0
                     movedY = 0
+                    downTime = System.currentTimeMillis()
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val nowX = event.rawX.toInt()
@@ -168,7 +179,13 @@ class TouchProofService : Service() {
                     Caches.y = layoutParams.y
                     Log.d("FLOAT", "moved x:$movedX ,moved y:$movedY")
                     if (abs(movedX) < CLICK_THRESHOLD && abs(movedY) < CLICK_THRESHOLD) {
-                        view.performClick()
+                        val interval=System.currentTimeMillis() - downTime
+                        Log.d(TAG,"down:$downTime ,interval:$interval")
+                        if (interval > LONG_CLICK_INTERVAL) {
+                            view.performLongClick()
+                        } else {
+                            view.performClick()
+                        }
                     }
                     toEdge(view)
                 }
