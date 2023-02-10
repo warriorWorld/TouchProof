@@ -47,43 +47,20 @@ class TouchProofService : Service() {
         layoutParams.gravity = Gravity.LEFT or Gravity.TOP
         layoutParams.flags =
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-        layoutParams.width = DEFAULT_WIDTH
-        layoutParams.height = DEFAULT_HEIGHT
+        layoutParams.width = AndroidUtils.dip2px(this, DEFAULT_WIDTH.toFloat())
+        layoutParams.height = AndroidUtils.dip2px(this, DEFAULT_HEIGHT.toFloat())
         layoutParams.x = (AndroidUtils.getScreeenWidth(this) - layoutParams.width / 2f).toInt()
         layoutParams.y = (0.8f * AndroidUtils.getScreeenHeight(this)).toInt()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val startHide = intent?.getBooleanExtra(INTENT_START_HIDE, true) ?: true
-        if (startHide) {
-            if (isStarted) {
-                val width = intent?.getIntExtra(INTENT_WIDTH, DEFAULT_WIDTH) ?: DEFAULT_WIDTH
-                val height = intent?.getIntExtra(INTENT_HEIGHT, DEFAULT_HEIGHT) ?: DEFAULT_HEIGHT
-                if (width > 0) {
-                    val widthCenter = layoutParams.x + layoutParams.width / 2
-                    layoutParams.x = widthCenter - width / 2
-                    layoutParams.width = width
-                }
-                if (height > 0) {
-                    layoutParams.height = height
-                }
-
-                windowManager.updateViewLayout(rootView, layoutParams)
-            } else {
-                showFloatingWindow()
-            }
-        } else {
-            if (isStarted) {
-                hideFloatingWindow()
-            }
-        }
+        showFloatingWindow()
         return super.onStartCommand(intent, flags, startId)
     }
 
     private fun showFloatingWindow() {
-        isStarted = true
         rootView = View(this)
-        rootView?.setBackgroundColor(resources.getColor(R.color.cover))
+        rootView?.background = resources.getDrawable(R.drawable.touchproof)
 
         windowManager.addView(rootView, layoutParams)
         mH.postDelayed(Runnable {
@@ -131,6 +108,4 @@ class TouchProofService : Service() {
             return true
         }
     }
-
-
 }
