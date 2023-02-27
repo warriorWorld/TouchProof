@@ -39,6 +39,7 @@ class TouchProofService : Service() {
     private var originalWidth = 0
     private var originalHeight = 0
     private var floatingOnTouchListener: FloatingOnTouchListener? = null
+    private var longClickLock = false;
 
     override fun onBind(p0: Intent?): IBinder? {
         return null
@@ -104,7 +105,7 @@ class TouchProofService : Service() {
                     rootView?.setBackgroundColor(resources.getColor(R.color.touch_proof))
                     rootView?.setOnTouchListener(null)
                     windowManager.updateViewLayout(rootView, layoutParams)
-                } else {
+                } else if (longClickLock){//先长按再双击才行
                     layoutParams.width = originalWidth
                     layoutParams.height = originalHeight
                     layoutParams.x = Caches.x
@@ -112,6 +113,7 @@ class TouchProofService : Service() {
                     rootView?.background = resources.getDrawable(R.drawable.touchproof)
                     rootView?.setOnTouchListener(floatingOnTouchListener)
                     windowManager.updateViewLayout(rootView, layoutParams)
+                    longClickLock=false
                 }
             }
             mH.postDelayed(Runnable {
@@ -123,6 +125,12 @@ class TouchProofService : Service() {
             if (layoutParams.width == originalWidth) {
                 Log.d(TAG, "long click")
                 android.os.Process.killProcess(android.os.Process.myPid())
+            }else{
+                VibratorUtil.Vibrate(this, 100)
+                longClickLock=true
+                mH.postDelayed(Runnable {
+                   longClickLock=false
+                }, 1000)
             }
             return@setOnLongClickListener false
         }
@@ -162,12 +170,11 @@ class TouchProofService : Service() {
                     movedX = 0
                     movedY = 0
                     longClickHandler.postDelayed(Runnable {
-                        VibratorUtil.Vibrate(view.context,100)
+                        VibratorUtil.Vibrate(view.context, 100)
                         view.performLongClick()
                     }, LONG_CLICK_INTERVAL)
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    longClickHandler.removeCallbacksAndMessages(null)
                     val nowX = event.rawX.toInt()
                     val nowY = event.rawY.toInt()
                     movedX = nowX - x
@@ -178,6 +185,9 @@ class TouchProofService : Service() {
                     layoutParams.y = layoutParams.y + movedY
 //                    Log.d("FLOAT", "position:${layoutParams.x},${layoutParams.y}")
                     windowManager.updateViewLayout(view, layoutParams)
+                    if (movedX >= CLICK_THRESHOLD || movedY >= CLICK_THRESHOLD) {
+                        longClickHandler.removeCallbacksAndMessages(null)
+                    }
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     longClickHandler.removeCallbacksAndMessages(null)
