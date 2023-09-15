@@ -4,15 +4,15 @@
     "type": "APK",
     "kind": "Directory"
   },
-  "applicationId": "com.harbinger.touchproof",
+  "applicationId": "com.hicorenational.antifraud",
   "variantName": "release",
   "elements": [
     {
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 1,
-      "versionName": "1.0",
+      "versionCode": 999,
+      "versionName": "10.0.1",
       "outputFile": "app-release.apk"
     }
   ],
